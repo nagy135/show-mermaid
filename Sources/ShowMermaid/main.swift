@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let clipboard = NSPasteboard.general.string(forType: .string) ?? ""
         let diagrams = MermaidExtractor.diagrams(in: clipboard)
 
-        let webView = WKWebView(frame: .zero, configuration: Self.configuration(for: diagrams))
+        let webView = DiagramWebView(frame: .zero, configuration: Self.configuration(for: diagrams))
         webView.setValue(false, forKey: "drawsBackground") // avoid a white flash in dark mode
         webView.loadHTMLString(Page.html, baseURL: nil)
 
@@ -24,13 +24,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.center()
         window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(webView)
         self.window = window
 
         // Plain "q" (no modifiers) quits, in addition to ⌘Q.
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak webView] event in
             let modifiers = event.modifierFlags.intersection([.command, .control, .option])
             if modifiers.isEmpty, event.charactersIgnoringModifiers?.lowercased() == "q" {
                 NSApp.terminate(nil)
+                return nil
+            }
+            if webView?.handleNavigationKey(event) == true {
                 return nil
             }
             return event
